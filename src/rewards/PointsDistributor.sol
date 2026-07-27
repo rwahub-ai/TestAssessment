@@ -61,4 +61,24 @@ contract PointsDistributor is IPointsDistributor, Ownable, ReentrancyGuard {
         }
     }
 
+    // ─── Redemption ─────────────────────────────────────────────────
+
+    function redeem(uint256 points) external nonReentrant returns (uint256 varAmount) {
+        require(points > 0 && points <= pointsOf[msg.sender], "Points: insufficient balance");
+
+        varAmount = previewRedeem(points);
+        require(varAmount <= varToken.balanceOf(address(this)), "Points: pool depleted");
+
+        pointsOf[msg.sender] -= points;
+        pointsRedeemed[msg.sender] += points;
+
+        varToken.safeTransfer(msg.sender, varAmount);
+        emit PointsRedeemed(msg.sender, points, varAmount);
+    }
+
+    // ─── Views ──────────────────────────────────────────────────────
+
+    function previewRedeem(uint256 points) public view returns (uint256) {
+        return (points * redemptionRateBps * VAR_DECIMALS_SCALE) / BPS_DENOMINATOR;
+    }
 }
