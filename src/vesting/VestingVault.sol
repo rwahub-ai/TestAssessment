@@ -1,0 +1,72 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+
+/**
+ * @title VestingVault
+ * @notice Linear $VAR vesting with an optional cliff, used for team, advisor,
+ *         and investor allocations. Schedules are revocable by the owner
+ *         (treasury/multisig) for unvested amounts only — anything already
+ *         vested at the time of revocation remains fully claimable.
+ */
+contract VestingVault is Ownable, ReentrancyGuard {
+    using SafeERC20 for IERC20;
+
+    struct VestingSchedule {
+        address beneficiary;
+        uint256 totalAmount;
+        uint256 released;
+        uint256 startTime;
+        uint256 cliffDuration;
+        uint256 vestingDuration;
+        bool    revocable;
+        bool    revoked;
+    }
+
+    IERC20 public immutable varToken;
+
+    uint256 public nextScheduleId;
+    mapping(uint256 => VestingSchedule) public schedules;
+    mapping(address => uint256[]) public schedulesByBeneficiary;
+
+    event ScheduleCreated(uint256 indexed id, address indexed beneficiary, uint256 amount, uint256 start, uint256 cliff, uint256 duration);
+    event TokensReleased(uint256 indexed id, address indexed beneficiary, uint256 amount);
+    event ScheduleRevoked(uint256 indexed id, uint256 unvestedReturned);
+
+    
+        schedulesByBeneficiary[beneficiary].push(id);
+
+        emit ScheduleCreated(id, beneficiary, amount, startTime, cliffDuration, vestingDuration);
+    }
+
+    
+
+    function revoke(uint256 id) external onlyOwner {
+        VestingSchedule storage s = schedules[id];
+        require(s.revocable, "not revocable");
+        require(!s.revoked, "already revoked");
+
+        uint256 vested = vestedAmount(id);
+        uint256 unvested = s.totalAmount - vested;
+
+        s.revoked = true;
+        s.totalAmount = vested; // freezes the schedule at its currently-vested amount
+
+        if (unvested > 0) varToken.safeTransfer(owner(), unvested);
+
+        emit ScheduleRevoked(id, unvested);
+    }
+
+    
+    function releasableAmount(uint256 id) public view returns (uint256) {
+        return vestedAmount(id) - schedules[id].released;
+    }
+
+    function getSchedulesByBeneficiary(address beneficiary) external view returns (uint256[] memory) {
+        return schedulesByBeneficiary[beneficiary];
+    }
+}
