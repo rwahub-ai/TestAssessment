@@ -61,7 +61,16 @@ contract VestingVault is Ownable, ReentrancyGuard {
         emit ScheduleRevoked(id, unvested);
     }
 
-    
+    // ── Views ────────────────────────────────────────────────────────
+    function vestedAmount(uint256 id) public view returns (uint256) {
+        VestingSchedule storage s = schedules[id];
+        if (s.totalAmount == 0) return 0;
+        if (block.timestamp < s.startTime + s.cliffDuration) return 0;
+        if (block.timestamp >= s.startTime + s.vestingDuration) return s.totalAmount;
+        uint256 elapsed = block.timestamp - s.startTime;
+        return (s.totalAmount * elapsed) / s.vestingDuration;
+    }
+
     function releasableAmount(uint256 id) public view returns (uint256) {
         return vestedAmount(id) - schedules[id].released;
     }
