@@ -30,6 +30,40 @@ contract ReferralRegistry is IReferralRegistry, Ownable, ReentrancyGuard {
     mapping(address => uint256) public pendingRewards;
     mapping(address => uint256) public totalRewardsPaid;
 
+    modifier onlyVariationalPro() {
+        require(msg.sender == variationalPro, "Referral: not VariationalPro");
+        _;
+    }
+
+    constructor(address _owner, address _rewardToken) Ownable(_owner) {
+        rewardToken = IERC20(_rewardToken);
+
+        // Default tiers, mirroring the frontend's illustrative schedule.
+        tiers.push(Tier({ minVolume: 0,              shareBps: 1000 })); // Starter  10%
+        tiers.push(Tier({ minVolume: 500_000e6,       shareBps: 1500 })); // Growth   15%
+        tiers.push(Tier({ minVolume: 5_000_000e6,     shareBps: 2000 })); // Pro      20%
+        tiers.push(Tier({ minVolume: 25_000_000e6,    shareBps: 2500 })); // Elite    25%
+    }
+
+    // ─── Admin ──────────────────────────────────────────────────────
+
+    function setVariationalPro(address _variationalPro) external onlyOwner {
+        variationalPro = _variationalPro;
+    }
+
+    function setTier(uint256 index, uint256 minVolume, uint256 shareBps) external onlyOwner {
+        require(shareBps <= 5000, "Referral: share too high");
+        if (index == tiers.length) {
+            tiers.push(Tier({ minVolume: minVolume, shareBps: shareBps }));
+        } else {
+            require(index < tiers.length, "Referral: bad index");
+            tiers[index] = Tier({ minVolume: minVolume, shareBps: shareBps });
+        }
+        emit TierUpdated(index, minVolume, shareBps);
+    }
+
+    // ─── Referrer / referee registration ───────────────────────────
+
     function registerCode(bytes32 code) external {
         require(code != bytes32(0), "Referral: empty code");
         require(codeOwner[code] == address(0), "Referral: code taken");

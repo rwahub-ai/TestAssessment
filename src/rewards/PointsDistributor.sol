@@ -39,7 +39,28 @@ contract PointsDistributor is IPointsDistributor, Ownable, ReentrancyGuard {
         _;
     }
 
-    
+    constructor(address _owner, address _varToken) Ownable(_owner) {
+        varToken = IERC20(_varToken);
+    }
+
+    // ─── Admin ──────────────────────────────────────────────────────
+
+    function setKeeper(address keeper, bool active) external onlyOwner {
+        isKeeper[keeper] = active;
+        emit KeeperUpdated(keeper, active);
+    }
+
+    function setRedemptionRate(uint256 newRateBps) external onlyOwner {
+        require(newRateBps > 0 && newRateBps <= BPS_DENOMINATOR, "Points: bad rate");
+        redemptionRateBps = newRateBps;
+        emit RedemptionRateUpdated(newRateBps);
+    }
+
+    /// @notice Top up the reward pool that backs redemptions.
+    function fundPool(uint256 amount) external {
+        varToken.safeTransferFrom(msg.sender, address(this), amount);
+    }
+
     // ─── Crediting ──────────────────────────────────────────────────
 
     function creditPoints(address account, uint256 amount, bytes32 reason) public onlyKeeper {
