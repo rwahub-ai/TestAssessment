@@ -37,13 +37,53 @@ contract VestingVault is Ownable, ReentrancyGuard {
     event TokensReleased(uint256 indexed id, address indexed beneficiary, uint256 amount);
     event ScheduleRevoked(uint256 indexed id, uint256 unvestedReturned);
 
-    
+    constructor(address _varToken, address _owner) Ownable(_owner) {
+        varToken = IERC20(_varToken);
+    }
+
+    function createSchedule(
+        address beneficiary,
+        uint256 amount,
+        uint256 startTime,
+        uint256 cliffDuration,
+        uint256 vestingDuration,
+        bool revocable
+    ) external onlyOwner returns (uint256 id) {
+        require(beneficiary != address(0), "zero beneficiary");
+        require(amount > 0, "zero amount");
+        require(vestingDuration > 0, "zero duration");
+        require(cliffDuration <= vestingDuration, "cliff > duration");
+
+        varToken.safeTransferFrom(msg.sender, address(this), amount);
+
+        id = ++nextScheduleId;
+        schedules[id] = VestingSchedule({
+            beneficiary: beneficiary,
+            totalAmount: amount,
+            released: 0,
+            startTime: startTime,
+            cliffDuration: cliffDuration,
+            vestingDuration: vestingDuration,
+            revocable: revocable,
+            revoked: false
+        });
         schedulesByBeneficiary[beneficiary].push(id);
 
         emit ScheduleCreated(id, beneficiary, amount, startTime, cliffDuration, vestingDuration);
     }
 
-    
+    function release(uint256 id) external nonReentrant {
+        VestingSchedule storage s = schedules[id];
+        require(msg.sender == s.beneficiary, "not beneficiary");
+
+        uint256 releasable = releasableAmount(id);
+        require(releasable > 0, "nothing to release");
+
+        s.released += releasable;
+        varToken.safeTransfer(s.beneficiary, releasable);
+
+        emit TokensReleased(id, s.beneficiary, releasable);
+    }
 
     function revoke(uint256 id) external onlyOwner {
         VestingSchedule storage s = schedules[id];
