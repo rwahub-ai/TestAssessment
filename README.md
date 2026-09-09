@@ -38,26 +38,3 @@ Foundry project for the Variational Pro perpetuals protocol, organized by domain
 **`src/interfaces/`** — one interface per contract above (`IVariationalPro`, `IRFQAggregator`,
 `IPriceOracle`, `IInsuranceFund`, `IReferralRegistry`, `IPointsDistributor`, `IVARToken`,
 `IVARStaking`, `IVariationalGovernor`)
-
-## Setup
-```bash
-forge install foundry-rs/forge-std --no-git
-forge install OpenZeppelin/openzeppelin-contracts --no-git
-forge build
-forge test -vvv
-```
-
-Note: `--no-git` only controls whether these dependencies are tracked as
-git submodules in this repo — Foundry still uses `git clone` internally to
-actually fetch them, so a working `git` is required either way.
-
-## Deploy
-```bash
-cp .env.example .env   # fill in your values
-forge script script/deploy/Deploy.s.sol --rpc-url arbitrum --broadcast --verify
-```
-
-## Test coverage
-```bash
-forge coverage
-```
