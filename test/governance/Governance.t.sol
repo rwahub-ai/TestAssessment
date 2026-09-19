@@ -84,7 +84,29 @@ contract VariationalGovernorTest is Test {
         staking.stake(5_000_000e18, IVARStaking.LockTier.GOLD); // 12.5M voting power
     }
 
-    
+    function testProposeRequiresThreshold() public {
+        address rando = address(0xD00D);
+        vm.prank(rando);
+        vm.expectRevert("Governor: below threshold");
+        governor.propose("Test", "desc", address(0), "");
+    }
+
+    function testFullProposalLifecycleToActive() public {
+        vm.prank(alice);
+        uint256 id = governor.propose("Lower fees", "Reduce protocol fee to 0bps", address(0), "");
+
+        assertEq(uint8(governor.state(id)), uint8(IVariationalGovernor.ProposalState.Pending));
+
+        vm.warp(block.timestamp + governor.votingDelay() + 1);
+        assertEq(uint8(governor.state(id)), uint8(IVariationalGovernor.ProposalState.Active));
+
+        uint8 support = governor.SUPPORT_FOR();
+        vm.prank(alice);
+        governor.castVote(id, support);
+
+        vm.warp(block.timestamp + governor.votingPeriod() + 1);
+        assertEq(uint8(governor.state(id)), uint8(IVariationalGovernor.ProposalState.Succeeded));
+    }
 
     function testCannotVoteTwice() public {
         vm.prank(alice);
