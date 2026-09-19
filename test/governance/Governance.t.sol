@@ -106,10 +106,34 @@ contract VestingVaultTest is Test {
     VARToken public var_;
     VestingVault public vault;
 
-    
+    address owner = address(this);
+    address beneficiary = address(0xBEEF);
+
+    function setUp() public {
+        var_ = new VARToken(owner);
+        vault = new VestingVault(address(var_), owner);
+
+        var_.addMinter(owner);
+        var_.mint(owner, 1_000_000e18);
+        var_.approve(address(vault), type(uint256).max);
+    }
+
+    function testNothingVestedBeforeCliff() public {
+        uint256 id = vault.createSchedule(beneficiary, 1_000_000e18, block.timestamp, 90 days, 365 days, true);
+        assertEq(vault.releasableAmount(id), 0);
+    }
+
+    function testLinearVestingAfterCliff() public {
+        uint256 id = vault.createSchedule(beneficiary, 1_000_000e18, block.timestamp, 90 days, 365 days, true);
+        vm.warp(block.timestamp + 182.5 days); // halfway through total duration
+
+        uint256 releasable = vault.releasableAmount(id);
+        assertApproxEqRel(releasable, 500_000e18, 0.01e18); // ~50%
+    }
 
     function testFullyVestedAfterDuration() public {
         uint256 id = vault.createSchedule(beneficiary, 1_000_000e18, block.timestamp, 0, 365 days, true);
+        vm.warp(block.timestamp + 366 days);
         assertEq(vault.releasableAmount(id), 1_000_000e18);
     }
 
