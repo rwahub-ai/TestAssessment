@@ -14,6 +14,39 @@ contract PriceOracleTest is Test {
 
     bytes32 constant BTC_PERP = keccak256("BTC-PERP");
 
+    function setUp() public {
+        oracle = new PriceOracle(owner);
+        oracle.setReporter(reporterA, true);
+        oracle.setReporter(reporterB, true);
+        oracle.setReporter(reporterC, true);
+    }
+
+    function test_FinalizeTakesMedianOfOddReports() public {
+        vm.prank(reporterA);
+        oracle.reportPrice(BTC_PERP, 107_000e18);
+        vm.prank(reporterB);
+        oracle.reportPrice(BTC_PERP, 107_500e18);
+        vm.prank(reporterC);
+        oracle.reportPrice(BTC_PERP, 108_000e18);
+
+        uint256 price = oracle.finalize(BTC_PERP);
+        assertEq(price, 107_500e18);
+    }
+
+    function test_FinalizeTakesAverageOfEvenReports() public {
+        vm.prank(reporterA);
+        oracle.reportPrice(BTC_PERP, 107_000e18);
+        vm.prank(reporterB);
+        oracle.reportPrice(BTC_PERP, 108_000e18);
+
+        uint256 price = oracle.finalize(BTC_PERP);
+        assertEq(price, 107_500e18);
+    }
+
+    function test_RevertsWithNoReports() public {
+        vm.expectRevert("Oracle: no reports");
+        oracle.finalize(BTC_PERP);
+    }
 
     function test_NonReporterCannotReport() public {
         vm.prank(address(0xBAD));
