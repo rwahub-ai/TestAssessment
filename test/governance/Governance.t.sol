@@ -47,7 +47,37 @@ contract VARStakingTest is Test {
         assertEq(staking.votingPower(bob), 100e18);
     }
 
-    
+    function testCannotUnstakeBeforeUnlock() public {
+        vm.prank(alice);
+        uint256 id = staking.stake(100e18, IVARStaking.LockTier.BRONZE);
+
+        vm.prank(alice);
+        vm.expectRevert("still locked");
+        staking.unstake(id);
+    }
+
+    function testUnstakeAfterUnlockReturnsFullPrincipal() public {
+        vm.prank(alice);
+        uint256 id = staking.stake(100e18, IVARStaking.LockTier.BRONZE);
+
+        vm.warp(block.timestamp + 31 days);
+
+        vm.prank(alice);
+        staking.unstake(id);
+
+        assertEq(var_.balanceOf(alice), 1_000_000e18); // full principal back
+    }
+
+    function testEmergencyUnstakeAppliesPenalty() public {
+        vm.prank(alice);
+        uint256 id = staking.stake(1000e18, IVARStaking.LockTier.GOLD);
+
+        uint256 before = var_.balanceOf(alice);
+        vm.prank(alice);
+        staking.emergencyUnstake(id);
+
+        assertLt(var_.balanceOf(alice) - before, 1000e18); // penalty applied
+    }
 
     function testRewardsAccrueOverTime() public {
         vm.prank(alice);

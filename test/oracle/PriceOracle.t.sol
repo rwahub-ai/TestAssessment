@@ -32,6 +32,20 @@ contract PriceOracleTest is Test {
         assertTrue(oracle.isStale(BTC_PERP));
     }
 
+    function test_TwapAveragesRecentCheckpoints() public {
+        vm.prank(reporterA);
+        oracle.reportPrice(BTC_PERP, 100e18);
+        oracle.finalize(BTC_PERP);
+
+        vm.warp(block.timestamp + 30);
+        vm.prank(reporterA);
+        oracle.reportPrice(BTC_PERP, 200e18);
+        oracle.finalize(BTC_PERP);
+
+        uint256 t = oracle.twap(BTC_PERP, 3600);
+        assertEq(t, 150e18);
+    }
+
     function test_RoundClearsAfterFinalize() public {
         vm.prank(reporterA);
         oracle.reportPrice(BTC_PERP, 100e18);
