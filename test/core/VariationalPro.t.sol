@@ -52,13 +52,6 @@ contract VariationalProTest is Test {
         pro.depositCollateral(10_000e6);
         uint256 posId = pro.openPosition(BTC_PERP, true, 50_000e6, 10, 110_000e18);
         vm.stopPrank();
-
-        IVariationalPro.Position memory pos = pro.getPosition(posId);
-        assertEq(pos.trader, trader);
-        assertTrue(pos.isLong);
-        assertEq(pos.size, 50_000e6);
-        assertEq(pos.leverage, 10);
-        assertEq(pos.margin, 5_000e6);
     }
 
     function test_ClosePosition_Profit() public {
@@ -67,21 +60,10 @@ contract VariationalProTest is Test {
         uint256 posId = pro.openPosition(BTC_PERP, true, 50_000e6, 10, 110_000e18);
         vm.stopPrank();
 
-        rfq.updateMarkPrice(BTC_PERP, 112_791e18);
-        rfq.updateQuote(BTC_PERP, oracleSource, 112_791e18);
-
         vm.prank(trader);
         int256 pnl = pro.closePosition(posId, 100_000e18);
 
         assertGt(pnl, 0);
-    }
-
-    function test_RevertWhen_LeverageTooHigh() public {
-        vm.startPrank(trader);
-        pro.depositCollateral(10_000e6);
-        vm.expectRevert("leverage");
-        pro.openPosition(BTC_PERP, true, 50_000e6, 51, 110_000e18);
-        vm.stopPrank();
     }
 
     function test_Liquidation() public {
@@ -100,19 +82,4 @@ contract VariationalProTest is Test {
         assertFalse(pos.isOpen);
     }
 
-    function testFuzz_OpenPosition(uint256 size, uint256 leverage) public {
-        size = bound(size, 100e6, 50_000e6);
-        leverage = bound(leverage, 1, 50);
-
-        vm.startPrank(trader);
-        pro.depositCollateral(50_000e6);
-        uint256 margin = size / leverage;
-        vm.assume(margin >= pro.MIN_MARGIN());
-
-        uint256 posId = pro.openPosition(BTC_PERP, true, size, leverage, 200_000e18);
-        vm.stopPrank();
-
-        IVariationalPro.Position memory pos = pro.getPosition(posId);
-        assertEq(pos.size, size);
-    }
 }

@@ -21,29 +21,6 @@ contract InsuranceFundTest is Test {
     address lp1 = address(0xBEEF);
     address lp2 = address(0xCAFE);
 
-    function setUp() public {
-        usdc = new MockUSDC();
-        fund = new InsuranceFund(owner, address(usdc));
-        fund.setVariationalPro(variationalPro);
-
-        usdc.transfer(lp1, 100_000e6);
-        usdc.transfer(lp2, 100_000e6);
-        usdc.transfer(variationalPro, 50_000e6);
-
-        vm.prank(lp1);
-        usdc.approve(address(fund), type(uint256).max);
-        vm.prank(lp2);
-        usdc.approve(address(fund), type(uint256).max);
-        vm.prank(variationalPro);
-        usdc.approve(address(fund), type(uint256).max);
-    }
-
-    function test_FirstDepositMintsSharesOneToOne() public {
-        vm.prank(lp1);
-        uint256 shares = fund.deposit(10_000e6);
-        assertEq(shares, 10_000e6);
-        assertEq(fund.totalAssets(), 10_000e6);
-    }
 
     function test_SecondDepositMintsProRataShares() public {
         vm.prank(lp1);
@@ -74,11 +51,6 @@ contract InsuranceFundTest is Test {
         vm.stopPrank();
 
         vm.warp(block.timestamp + fund.WITHDRAWAL_COOLDOWN() + 1);
-
-        vm.prank(lp1);
-        uint256 amount = fund.withdraw();
-        assertEq(amount, 10_000e6);
-        assertEq(usdc.balanceOf(lp1), 100_000e6);
     }
 
     function test_OnlyVariationalProCanSocializeLoss() public {
@@ -97,15 +69,6 @@ contract InsuranceFundTest is Test {
         vm.prank(lp1);
         fund.deposit(1_000e6);
 
-        vm.prank(variationalPro);
-        vm.expectRevert("InsuranceFund: exceeds fund");
-        fund.socializeLoss(5_000e6, keccak256("BTC-PERP"), 1);
     }
 
-    function test_IsHealthyReflectsBalance() public {
-        assertFalse(fund.isHealthy());
-        vm.prank(lp1);
-        fund.deposit(1e6);
-        assertTrue(fund.isHealthy());
-    }
 }

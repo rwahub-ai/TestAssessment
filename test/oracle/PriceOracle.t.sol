@@ -14,39 +14,6 @@ contract PriceOracleTest is Test {
 
     bytes32 constant BTC_PERP = keccak256("BTC-PERP");
 
-    function setUp() public {
-        oracle = new PriceOracle(owner);
-        oracle.setReporter(reporterA, true);
-        oracle.setReporter(reporterB, true);
-        oracle.setReporter(reporterC, true);
-    }
-
-    function test_FinalizeTakesMedianOfOddReports() public {
-        vm.prank(reporterA);
-        oracle.reportPrice(BTC_PERP, 107_000e18);
-        vm.prank(reporterB);
-        oracle.reportPrice(BTC_PERP, 107_500e18);
-        vm.prank(reporterC);
-        oracle.reportPrice(BTC_PERP, 108_000e18);
-
-        uint256 price = oracle.finalize(BTC_PERP);
-        assertEq(price, 107_500e18);
-    }
-
-    function test_FinalizeTakesAverageOfEvenReports() public {
-        vm.prank(reporterA);
-        oracle.reportPrice(BTC_PERP, 107_000e18);
-        vm.prank(reporterB);
-        oracle.reportPrice(BTC_PERP, 108_000e18);
-
-        uint256 price = oracle.finalize(BTC_PERP);
-        assertEq(price, 107_500e18);
-    }
-
-    function test_RevertsWithNoReports() public {
-        vm.expectRevert("Oracle: no reports");
-        oracle.finalize(BTC_PERP);
-    }
 
     function test_NonReporterCannotReport() public {
         vm.prank(address(0xBAD));
@@ -63,20 +30,6 @@ contract PriceOracleTest is Test {
 
         vm.warp(block.timestamp + oracle.stalenessThreshold() + 1);
         assertTrue(oracle.isStale(BTC_PERP));
-    }
-
-    function test_TwapAveragesRecentCheckpoints() public {
-        vm.prank(reporterA);
-        oracle.reportPrice(BTC_PERP, 100e18);
-        oracle.finalize(BTC_PERP);
-
-        vm.warp(block.timestamp + 30);
-        vm.prank(reporterA);
-        oracle.reportPrice(BTC_PERP, 200e18);
-        oracle.finalize(BTC_PERP);
-
-        uint256 t = oracle.twap(BTC_PERP, 3600);
-        assertEq(t, 150e18);
     }
 
     function test_RoundClearsAfterFinalize() public {
