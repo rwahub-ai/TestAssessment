@@ -12,4 +12,23 @@ contract MarginEngineTest is Test {
         engine = new MarginEngine(address(0x1));
     }
 
+    function testHealthFactorNoDebt() public {
+        assertEq(engine.healthFactor(trader), type(uint256).max);
+    }
+
+    function testHealthFactorComputation() public {
+        engine.updateEquity(trader, 150e18, 100e18);
+        assertEq(engine.healthFactor(trader), 1.5e18);
+    }
+
+    function testIsLiquidatable() public {
+        engine.updateEquity(trader, 90e18, 100e18);
+        assertTrue(engine.isLiquidatable(trader));
+    }
+
+    function testToggleCrossMargin() public {
+        vm.prank(trader);
+        engine.toggleCrossMargin(true);
+        assertTrue(engine.crossMarginEnabled(trader));
+    }
 }

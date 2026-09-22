@@ -12,7 +12,18 @@ contract MockToken is ERC20 {
 }
 
 contract MulticallTest is Test {
-    
+    Multicall public multicall;
+    MockToken public token;
+
+    address alice = address(0xA11ce);
+    address bob = address(0xB0b);
+
+    function setUp() public {
+        multicall = new Multicall();
+        token = new MockToken();
+        token.transfer(alice, 100e18);
+        token.transfer(bob, 50e18);
+    }
 
     function test_AggregateBatchesBalanceReads() public {
         Multicall.Call[] memory calls = new Multicall.Call[](2);
